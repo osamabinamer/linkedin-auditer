@@ -10,23 +10,18 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleUpload = async (file: File) => {
+  const handleUpload = async (text: string) => {
     setLoading(true);
     setError("");
-    
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
       const response = await fetch("/api/analyze", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
       });
-
       if (!response.ok) {
         throw new Error("Failed to analyze profile");
       }
-
       const data = await response.json();
       setAnalysis(data);
     } catch (err) {

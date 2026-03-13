@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { motion } from "framer-motion";
 
 interface FileUploadProps {
-  onUpload: (file: File) => void;
+  onUpload: (text: string) => void;
   loading: boolean;
   error: string;
 }
@@ -22,7 +22,26 @@ export default function FileUpload({ onUpload, loading, error }: FileUploadProps
     setIsDragging(false);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  // Helper to extract text from PDF using pdfjs-dist
+  const extractTextFromPDF = async (file: File) => {
+    const pdfjsLib = await import("pdfjs-dist/build/pdf");
+    // @ts-ignore
+    const pdfjsWorker = await import("pdfjs-dist/build/pdf.worker.entry");
+    // @ts-ignore
+    pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let text = "";
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map((item: any) => item.str).join(" ") + "\n";
+    }
+    return text;
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
 
@@ -30,17 +49,24 @@ export default function FileUpload({ onUpload, loading, error }: FileUploadProps
     if (files.length > 0) {
       const file = files[0];
       if (file.type === "application/pdf") {
-        onUpload(file);
+        const text = await extractTextFromPDF(file);
+        onUpload(text);
       } else {
         alert("Please upload a PDF file");
       }
     }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.currentTarget.files;
     if (files && files.length > 0) {
-      onUpload(files[0]);
+      const file = files[0];
+      if (file.type === "application/pdf") {
+        const text = await extractTextFromPDF(file);
+        onUpload(text);
+      } else {
+        alert("Please upload a PDF file");
+      }
     }
   };
 

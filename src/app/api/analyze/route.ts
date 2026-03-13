@@ -150,30 +150,11 @@ ${profileText.substring(0, 3000)}`;
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-    const file = formData.get("file") as File;
+    const { text } = await request.json();
+    let profileText = text || "";
 
-    if (!file) {
-      return NextResponse.json(
-        { error: "No file provided" },
-        { status: 400 }
-      );
-    }
-
-    const buffer = await file.arrayBuffer();
-    let profileText = "";
-    
-    try {
-      profileText = await extractTextFromPDF(Buffer.from(buffer));
-    } catch (pdfError) {
-      console.error("PDF parsing error:", pdfError);
-      // Continue with empty text - demo mode will handle it
-    }
-
-    // If PDF extraction failed or returned empty, use demo mode with generic data
     if (!profileText.trim()) {
       console.log("No text extracted - using demo mode analysis");
-      // Generate demo analysis with generic LinkedIn profile text
       const genericProfile = "LinkedIn Profile - Software Engineer with experience in web development, cloud technologies, problem solving and team collaboration. Skills include JavaScript, React, Node.js, Python, AWS. Led projects improving system performance by 40%.";
       const analysis = await generateDemoAnalysis(genericProfile);
       return NextResponse.json(analysis);
@@ -184,14 +165,12 @@ export async function POST(request: NextRequest) {
       analysis = await analyzeProfileWithOllama(profileText);
     } catch (error) {
       console.error("Analysis error:", error);
-      // Fallback to demo analysis even on error
       analysis = await generateDemoAnalysis(profileText);
     }
 
     return NextResponse.json(analysis);
   } catch (error) {
     console.error("Request error:", error);
-    // Return demo analysis as final fallback
     const analysis = await generateDemoAnalysis("LinkedIn Profile");
     return NextResponse.json(analysis);
   }
