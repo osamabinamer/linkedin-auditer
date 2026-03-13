@@ -25,7 +25,7 @@ export default function FileUpload({ onUpload, loading, error }: FileUploadProps
   // Helper to extract text from PDF using pdfjs-dist (browser-only)
   const extractTextFromPDF = async (file: File) => {
     // Dynamically import only in the browser
-    const pdfjsLib = await import("pdfjs-dist/build/pdf");
+    const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf");
     // Use CDN worker for browser compatibility
     // @ts-ignore
     pdfjsLib.GlobalWorkerOptions.workerSrc =
