@@ -22,13 +22,14 @@ export default function FileUpload({ onUpload, loading, error }: FileUploadProps
     setIsDragging(false);
   };
 
-  // Helper to extract text from PDF using pdfjs-dist
+  // Helper to extract text from PDF using pdfjs-dist (browser-only)
   const extractTextFromPDF = async (file: File) => {
+    // Dynamically import only in the browser
     const pdfjsLib = await import("pdfjs-dist/build/pdf");
+    // Use CDN worker for browser compatibility
     // @ts-ignore
-    const pdfjsWorker = await import("pdfjs-dist/build/pdf.worker.entry");
-    // @ts-ignore
-    pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.5.207/pdf.worker.min.js";
 
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
