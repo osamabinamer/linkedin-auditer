@@ -17,6 +17,13 @@ import {
   Legend,
   ResponsiveContainer,
   Cell,
+  ScatterChart,
+  Scatter,
+  LineChart,
+  Line,
+  ComposedChart,
+  Area,
+  AreaChart,
 } from "recharts";
 
 interface SkillMatch {
@@ -199,90 +206,227 @@ export default function JobMatchResults({ analysis, onReset }: JobMatchResultsPr
         animate={{ opacity: 1, y: 0 }}
         className="rounded-2xl bg-white shadow-lg p-6"
       >
-        <h3 className="text-xl font-bold text-slate-900 mb-6">Skills Breakdown</h3>
-        <div className="grid md:grid-cols-2 gap-8">
-          {/* Skills Distribution */}
-          <div className="flex flex-col items-center justify-center">
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={generateSkillDistribution(analysis.skillMatches)}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="category" stroke="#64748b" />
-                <YAxis stroke="#64748b" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#1e293b",
-                    border: "1px solid #64748b",
-                    borderRadius: "8px",
-                    color: "#f1f5f9",
-                  }}
-                  cursor={{ fill: "rgba(59, 130, 246, 0.1)" }}
-                />
-                <Bar dataKey="count" fill="#3b82f6" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-            <p className="text-sm text-slate-600 mt-4 text-center">
-              Distribution of skill proficiency levels in your profile
-            </p>
-          </div>
-
-          {/* Proficiency Radar */}
-          <div className="flex flex-col items-center justify-center">
-            <ResponsiveContainer width="100%" height={300}>
-              <RadarChart data={generateProficiencyData(analysis.skillMatches)}>
-                <PolarGrid stroke="#cbd5e1" />
-                <PolarAngleAxis dataKey="name" stroke="#64748b" />
-                <PolarRadiusAxis angle={90} domain={[0, 100]} stroke="#94a3b8" />
-                <Radar
-                  name="Your Proficiency"
-                  dataKey="value"
-                  stroke="#3b82f6"
-                  fill="#3b82f6"
-                  fillOpacity={0.6}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#1e293b",
-                    border: "1px solid #64748b",
-                    borderRadius: "8px",
-                    color: "#f1f5f9",
-                  }}
-                />
-                <Legend />
-              </RadarChart>
-            </ResponsiveContainer>
-            <p className="text-sm text-slate-600 mt-4 text-center">
-              Your proficiency levels across key skills
-            </p>
-          </div>
+        <h3 className="text-xl font-bold text-slate-900 mb-6">📊 Your Skills vs Job Requirements</h3>
+        <p className="text-sm text-slate-600 mb-4">Shows your proficiency level (blue) vs what the job requires (orange)</p>
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart
+              data={generateSkillComparisonData(analysis.skillMatches)}
+              margin={{ top: 20, right: 80, bottom: 60, left: 60 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis
+                dataKey="skill"
+                angle={-45}
+                textAnchor="end"
+                height={80}
+                tick={{ fontSize: 12 }}
+                stroke="#64748b"
+              />
+              <YAxis domain={[0, 100]} stroke="#64748b" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#1e293b",
+                  border: "2px solid #3b82f6",
+                  borderRadius: "8px",
+                  color: "#f1f5f9",
+                }}
+                cursor={{ fill: "rgba(59, 130, 246, 0.1)" }}
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length >= 2) {
+                    const data = payload[0].payload;
+                    const yourValue = payload[0].value as number;
+                    const requiredValue = payload[1]?.value as number || data.required;
+                    return (
+                      <div className="p-3 bg-slate-900 rounded-lg border border-blue-500">
+                        <p className="font-semibold text-blue-300">{data.skill}</p>
+                        <p className="text-blue-200">Your Level: {yourValue}%</p>
+                        <p className="text-orange-200">Required: {requiredValue}%</p>
+                        <p className="text-green-300 text-xs mt-1">
+                          {yourValue >= requiredValue ? "✓ Ready" : `✗ Gap: ${requiredValue - yourValue}%`}
+                        </p>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Bar dataKey="yourLevel" fill="#3b82f6" name="Your Proficiency" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="required" fill="#f97316" name="Required Level" radius={[8, 8, 0, 0]} />
+            </ComposedChart>
+          </ResponsiveContainer>
         </div>
       </motion.div>
 
-      {/* Importance Priority Chart */}
+      {/* Priority Matrix - What to Focus On */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="rounded-2xl bg-white shadow-lg p-6"
       >
-        <h3 className="text-xl font-bold text-slate-900 mb-6">Skills by Importance</h3>
-        <div className="h-64 flex items-center justify-center">
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={generateImportanceData(analysis.skillMatches)} layout="vertical">
+        <h3 className="text-xl font-bold text-slate-900 mb-2">🎯 Skill Priority Matrix</h3>
+        <p className="text-sm text-slate-600 mb-6">
+          Top-left = Most important to learn. Shows importance vs your current gap
+        </p>
+        <div className="h-96 relative">
+          <ResponsiveContainer width="100%" height="100%">
+            <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis type="number" stroke="#64748b" />
-              <YAxis dataKey="skill" type="category" stroke="#64748b" width={100} />
+              <XAxis
+                dataKey="gap"
+                name="Skill Gap"
+                unit="%"
+                type="number"
+                domain={[0, 100]}
+                label={{ value: "Skill Gap (%) →", position: "insideBottomRight", offset: -10 }}
+                stroke="#64748b"
+              />
+              <YAxis
+                dataKey="importance"
+                name="Importance"
+                unit="%"
+                type="number"
+                domain={[0, 100]}
+                label={{ value: "← Importance (%)", angle: -90, position: "insideLeft" }}
+                stroke="#64748b"
+              />
               <Tooltip
                 contentStyle={{
                   backgroundColor: "#1e293b",
-                  border: "1px solid #64748b",
+                  border: "2px solid #10b981",
                   borderRadius: "8px",
                   color: "#f1f5f9",
+                  padding: "8px",
                 }}
-                cursor={{ fill: "rgba(59, 130, 246, 0.1)" }}
+                cursor={{ fill: "rgba(16, 185, 129, 0.1)" }}
+                content={({ active, payload }) => {
+                  if (active && payload && payload[0]) {
+                    const data = payload[0].payload;
+                    return (
+                      <div className="p-3 bg-slate-900 rounded-lg border border-green-500">
+                        <p className="font-semibold text-emerald-300">{data.name}</p>
+                        <p className="text-emerald-200">Importance: {data.importance}%</p>
+                        <p className="text-emerald-200">Your Gap: {data.gap}%</p>
+                        <p className="text-yellow-300 text-xs mt-1">{data.recommendation}</p>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
               />
-              <Legend />
-              <Bar dataKey="proficiency" fill="#8b5cf6" radius={[0, 8, 8, 0]} />
-            </BarChart>
+              <Scatter name="Critical Skills" data={generatePriorityMatrixData(analysis)} fill="#ef4444" />
+              <Scatter name="Important Skills" data={generatePriorityMatrixData(analysis)} fill="#f59e0b" />
+              <Scatter name="Nice to Have" data={generatePriorityMatrixData(analysis)} fill="#3b82f6" />
+            </ScatterChart>
           </ResponsiveContainer>
+          {/* Quadrant Labels */}
+          <div className="absolute top-8 left-8 text-xs font-bold text-red-500 opacity-30">
+            HIGH PRIORITY ↑
+          </div>
+          <div className="absolute bottom-8 right-8 text-xs font-bold text-green-500 opacity-30">
+            STRONG AREA →
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Skills Readiness Progress */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl bg-white shadow-lg p-6"
+      >
+        <h3 className="text-xl font-bold text-slate-900 mb-6">📈 Skills Readiness by Category</h3>
+        <div className="space-y-6">
+          {generateSkillCategoryBreakdown(analysis.skillMatches).map((category, idx) => (
+            <motion.div
+              key={idx}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: idx * 0.1 }}
+              className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-lg p-4 border border-slate-200"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="font-semibold text-slate-900">{category.category}</p>
+                  <p className="text-xs text-slate-600">
+                    {category.proficiency}% overall proficiency • {category.count} skills
+                  </p>
+                </div>
+                <span className="text-2xl font-bold text-blue-600">{category.proficiency}%</span>
+              </div>
+              <div className="w-full bg-slate-300 rounded-full h-3 overflow-hidden">
+                <motion.div
+                  className={`h-full rounded-full`}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${category.proficiency}%` }}
+                  transition={{ duration: 1, ease: "easeOut" }}
+                  style={{
+                    background: `linear-gradient(90deg, 
+                      ${category.proficiency >= 80 ? "#10b981" : category.proficiency >= 60 ? "#3b82f6" : "#f59e0b"}
+                      0%,
+                      ${category.proficiency >= 80 ? "#059669" : category.proficiency >= 60 ? "#1d4ed8" : "#d97706"}
+                      100%)`,
+                  }}
+                />
+              </div>
+              {category.proficiency < 80 && (
+                <p className="text-xs text-orange-600 mt-2">
+                  📌 Focus on gaining {80 - category.proficiency}% more proficiency
+                </p>
+              )}
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Gap Analysis Heatmap */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl bg-white shadow-lg p-6"
+      >
+        <h3 className="text-xl font-bold text-slate-900 mb-6">🔥 Skills Gap Heat Map</h3>
+        <p className="text-sm text-slate-600 mb-4">Red = Large gap, Green = You're ready. Sorted by need</p>
+        <div className="space-y-2">
+          {generateGapAnalysisData(analysis.skillMatches).map((item, idx) => (
+            <motion.div
+              key={idx}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: idx * 0.05 }}
+              className="group cursor-pointer"
+            >
+              <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-all">
+                <div className="w-24 font-semibold text-sm text-slate-700 truncate">
+                  {item.skill.slice(0, 14)}
+                </div>
+                <div className="flex-1 flex items-center gap-2">
+                  <div className="flex-1 h-8 rounded-lg overflow-hidden bg-gradient-to-r border-2 border-slate-200 group-hover:border-slate-400 transition-all"
+                    style={{
+                      background: `linear-gradient(90deg, 
+                        ${item.gap <= 20 ? "#10b981" : item.gap <= 50 ? "#3b82f6" : item.gap <= 75 ? "#f59e0b" : "#ef4444"}
+                        0%,
+                        ${item.gap <= 20 ? "#059669" : item.gap <= 50 ? "#1d4ed8" : item.gap <= 75 ? "#d97706" : "#dc2626"}
+                        100%)`,
+                    }}
+                  >
+                    <motion.div
+                      className="h-full bg-white/20"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${100 - item.gap}%` }}
+                      transition={{ duration: 0.8, ease: "easeOut" }}
+                    />
+                  </div>
+                  <div className="w-12 text-right">
+                    <span className="text-sm font-bold text-slate-900">{item.gap}%</span>
+                  </div>
+                  <span className="text-lg">
+                    {item.gap === 0 ? "✅" : item.gap <= 30 ? "⚠️" : item.gap <= 70 ? "🎯" : "❌"}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          ))}
         </div>
       </motion.div>
 
@@ -407,6 +551,132 @@ export default function JobMatchResults({ analysis, onReset }: JobMatchResultsPr
 }
 
 // Helper functions to prepare data for charts
+function generateSkillComparisonData(skillMatches: SkillMatch[]) {
+  const proficiencyMap = {
+    expert: 100,
+    intermediate: 75,
+    beginner: 40,
+    missing: 0,
+  };
+
+  const importanceMap = {
+    required: 90,
+    preferred: 70,
+    "nice-to-have": 40,
+  };
+
+  return skillMatches.slice(0, 8).map((skill) => ({
+    skill: skill.skill.slice(0, 12),
+    yourLevel: proficiencyMap[skill.proficiency],
+    required: importanceMap[skill.importance],
+  }));
+}
+
+function generatePriorityMatrixData(analysis: JobMatchAnalysis) {
+  const proficiencyMap = {
+    expert: 100,
+    intermediate: 75,
+    beginner: 40,
+    missing: 0,
+  };
+
+  const importanceMap = {
+    required: 95,
+    preferred: 70,
+    "nice-to-have": 40,
+  };
+
+  return analysis.skillMatches.slice(0, 12).map((skill) => {
+    const yourLevel = proficiencyMap[skill.proficiency];
+    const required = importanceMap[skill.importance];
+    const gap = Math.max(0, required - yourLevel);
+    const importance = importanceMap[skill.importance];
+
+    let recommendation = "";
+    if (gap <= 20) {
+      recommendation = "✓ Ready to go";
+    } else if (importance >= 90) {
+      recommendation = "🔴 Critical - Start now";
+    } else if (gap >= 60) {
+      recommendation = "⚠️ Significant effort needed";
+    } else {
+      recommendation = "📌 Medium priority";
+    }
+
+    return {
+      name: skill.skill,
+      gap: gap,
+      importance: importance,
+      x: gap,
+      y: importance,
+      recommendation,
+    };
+  });
+}
+
+function generateSkillCategoryBreakdown(skillMatches: SkillMatch[]) {
+  const proficiencyMap = {
+    expert: 100,
+    intermediate: 75,
+    beginner: 40,
+    missing: 0,
+  };
+
+  const categories = ["Technical", "Languages", "Soft Skills", "Tools"];
+  const result = categories.map((cat) => {
+    const categorySkills = skillMatches.filter((s) =>
+      s.skill.toLowerCase().includes(cat.toLowerCase())
+    );
+
+    if (categorySkills.length === 0) {
+      return {
+        category: cat,
+        proficiency: 0,
+        count: 0,
+      };
+    }
+
+    const avgProficiency = Math.round(
+      categorySkills.reduce((sum, skill) => sum + proficiencyMap[skill.proficiency], 0) /
+        categorySkills.length
+    );
+
+    return {
+      category: cat,
+      proficiency: avgProficiency,
+      count: categorySkills.length,
+    };
+  });
+
+  return result.filter((r) => r.count > 0);
+}
+
+function generateGapAnalysisData(skillMatches: SkillMatch[]) {
+  const proficiencyMap = {
+    expert: 100,
+    intermediate: 75,
+    beginner: 40,
+    missing: 0,
+  };
+
+  const importanceMap = {
+    required: 90,
+    preferred: 70,
+    "nice-to-have": 40,
+  };
+
+  return skillMatches
+    .map((skill) => ({
+      skill: skill.skill,
+      yourLevel: proficiencyMap[skill.proficiency],
+      required: importanceMap[skill.importance],
+      gap: Math.max(0, importanceMap[skill.importance] - proficiencyMap[skill.proficiency]),
+      importance: skill.importance,
+    }))
+    .sort((a, b) => b.gap - a.gap)
+    .slice(0, 10);
+}
+
 function generateSkillDistribution(skillMatches: SkillMatch[]) {
   const distribution = {
     expert: 0,
