@@ -1,5 +1,102 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// Helper function to extract years of experience from date ranges
+function extractExperienceFromDates(text: string): { years: number; message: string } {
+  // Regex patterns for various date formats
+  const dateRangePatterns = [
+    // "Jan 2020 - Dec 2023", "January 2020 - December 2023", "2020 - 2023"
+    /(\w+\s*\d{4}|\d{1,2}\/\d{4}|\d{4})\s*[-–to]\s*(\w+\s*\d{4}|Present|Current|\d{1,2}\/\d{4}|\d{4})/gi,
+    // "Jan/2020 - Dec/2023", "01/2020 - 12/2023"
+    /(\d{1,2}\/\d{4})\s*[-–to]\s*(\d{1,2}\/\d{4}|Present|Current)/gi,
+  ];
+
+  let totalMonths = 0;
+  let foundDateRanges = 0;
+
+  for (const pattern of dateRangePatterns) {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      foundDateRanges++;
+      const startDate = parseDate(match[1]);
+      const endDate = match[2].toLowerCase().includes("present") || 
+                     match[2].toLowerCase().includes("current") 
+        ? new Date() 
+        : parseDate(match[2]);
+
+      if (startDate && endDate) {
+        const months = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
+        totalMonths += Math.max(0, months);
+      }
+    }
+  }
+
+  const cvYears = Math.round((totalMonths / 12) * 10) / 10; // Round to 1 decimal place
+
+  if (foundDateRanges > 0 && cvYears > 0) {
+    return { 
+      years: cvYears, 
+      message: `${cvYears} year${cvYears !== 1 ? 's' : ''} of experience` 
+    };
+  }
+
+  // Fallback: look for explicit "X years" mentions
+  const explicitYearsMatch = text.match(/(\d+)\+?\s*years?\s*(of|of\s*)?experience/i);
+  if (explicitYearsMatch) {
+    const years = parseInt(explicitYearsMatch[1]);
+    return { 
+      years, 
+      message: `${years} year${years !== 1 ? 's' : ''} of experience` 
+    };
+  }
+
+  return { 
+    years: 0, 
+    message: "Experience dates are not provided in the CV" 
+  };
+}
+
+// Helper function to parse various date formats
+function parseDate(dateStr: string): Date | null {
+  const months: { [key: string]: number } = {
+    jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2,
+    apr: 3, april: 3, may: 4, jun: 5, june: 5, jul: 6, july: 6,
+    aug: 7, august: 7, sep: 8, september: 8, oct: 9, october: 9,
+    nov: 10, november: 10, dec: 11, december: 11,
+  };
+
+  const trimmed = dateStr.trim();
+
+  // Try MM/YYYY format
+  const slashMatch = trimmed.match(/(\d{1,2})\/(\d{4})/);
+  if (slashMatch) {
+    const month = parseInt(slashMatch[1]) - 1;
+    const year = parseInt(slashMatch[2]);
+    if (month >= 0 && month <= 11) {
+      return new Date(year, month, 1);
+    }
+  }
+
+  // Try Month YYYY format
+  const monthYearMatch = trimmed.match(/(\w+)\s+(\d{4})/);
+  if (monthYearMatch) {
+    const monthName = monthYearMatch[1].toLowerCase();
+    const year = parseInt(monthYearMatch[2]);
+    const month = months[monthName];
+    if (month !== undefined) {
+      return new Date(year, month, 1);
+    }
+  }
+
+  // Try YYYY only
+  const yearMatch = trimmed.match(/(\d{4})/);
+  if (yearMatch) {
+    const year = parseInt(yearMatch[1]);
+    return new Date(year, 0, 1);
+  }
+
+  return null;
+}
+
 async function generateDemoJobMatchAnalysis(cvText: string, jobDescription: string) {
   const cvLower = cvText.toLowerCase();
   const jobLower = jobDescription.toLowerCase();
@@ -17,14 +114,29 @@ async function generateDemoJobMatchAnalysis(cvText: string, jobDescription: stri
     ? Math.round((matchedSkills.length / jobSkills.length) * 100)
     : 60;
   
-  // Experience analysis
-  const yearsMatch = cvText.match(/(\d+)\+?\s*years?/i);
-  const yearsRequiredMatch = jobDescription.match(/(\d+)\+?\s*years?/i);
-  const cvYears = yearsMatch ? parseInt(yearsMatch[1]) : 0;
-  const requiredYears = yearsRequiredMatch ? parseInt(yearsRequiredMatch[1]) : 0;
+  // Experience analysis - extract from date ranges
+  const cvExperience = extractExperienceFromDates(cvText);
+  const jobExperience = extractExperienceFromDates(jobDescription);
   
-  const experienceScore = cvYears >= requiredYears ? 100 : Math.round((cvYears / Math.max(requiredYears, 1)) * 100);
-  const experienceGap = cvYears >= requiredYears ? "Perfect match" : `${requiredYears - cvYears}+ years needed`;
+  const cvYears = cvExperience.years;
+  const requiredYears = jobExperience.years;
+  
+  let experienceScore: number;
+  let experienceGap: string;
+  
+  if (cvYears === 0) {
+    experienceScore = 0;
+    experienceGap = cvExperience.message;
+  } else if (requiredYears === 0) {
+    experienceScore = 100;
+    experienceGap = `${cvYears} year${cvYears !== 1 ? 's' : ''} of experience`;
+  } else if (cvYears >= requiredYears) {
+    experienceScore = 100;
+    experienceGap = "Perfect match";
+  } else {
+    experienceScore = Math.round((cvYears / requiredYears) * 100);
+    experienceGap = `${(requiredYears - cvYears).toFixed(1)} more year${Math.round(requiredYears - cvYears) !== 1 ? 's' : ''} needed`;
+  }
   
   // Profile completeness (based on skill count and descriptions)
   const profileCompleteness = Math.min(100, cvSkills.length * 10 + (cvText.length > 200 ? 30 : 20));
@@ -37,12 +149,15 @@ async function generateDemoJobMatchAnalysis(cvText: string, jobDescription: stri
     profileCompleteness * 0.2
   );
   
+  const experienceDisplay = cvYears > 0 ? `${cvYears} year${cvYears !== 1 ? 's' : ''}` : "Not specified";
+  const experienceStatus = cvYears === 0 ? "⚠️ No dates found" : (experienceScore >= 80 ? "✓ Meets requirement" : "⚠️ Below requirement");
+  
   return {
     overallMatch,
     skillMatch,
     experienceScore,
     profileCompleteness,
-    summary: `Your overall job match is ${overallMatch}%! You have ${matchedSkills.length}/${jobSkills.length} required skills (${skillMatch}%). Your experience level scores ${experienceScore}%. ${missingSkills.length > 0 ? `Focus on ${missingSkills.slice(0, 2).join(" and ")} to strengthen your candidacy.` : "Excellent alignment!"}`,
+    summary: `Your overall job match is ${overallMatch}%! You have ${matchedSkills.length}/${jobSkills.length} required skills (${skillMatch}%). ${cvYears > 0 ? `Your ${cvYears} year${cvYears !== 1 ? 's' : ''} of experience scores ${experienceScore}%.` : "Experience dates are not provided in your CV."} ${missingSkills.length > 0 ? `Focus on ${missingSkills.slice(0, 2).join(" and ")} to strengthen your candidacy.` : "Excellent alignment!"}`,
     skillMatches: [
       ...matchedSkills.map(skill => ({
         skill,
@@ -58,12 +173,12 @@ async function generateDemoJobMatchAnalysis(cvText: string, jobDescription: stri
     missingSkills,
     strengths: [
       `Skills match: ${skillMatch}% (${matchedSkills.length}/${jobSkills.length} required skills)`,
-      `Experience level: ${cvYears} year${cvYears !== 1 ? 's' : ''} ${experienceScore >= 80 ? '✓ Meets requirement' : '⚠️ Below requirement'}`,
+      `Experience level: ${experienceDisplay} ${experienceStatus}`,
       `Profile strength: ${profileCompleteness}% (${cvSkills.length} skills documented)`,
     ],
     weaknesses: [
       missingSkills.length > 0 ? `Missing ${missingSkills.length} key skills: ${missingSkills.slice(0, 2).join(", ")}` : "All key skills covered!",
-      experienceScore < 60 ? `Experience gap: ${requiredYears - cvYears}+ more years needed` : "Experience is appropriate",
+      cvYears === 0 ? "Experience dates are not provided in your CV" : (experienceScore < 60 ? `Experience gap: ${(requiredYears - cvYears).toFixed(1)} more years needed` : "Experience is appropriate"),
       cvSkills.length < jobSkills.length ? `Only ${cvSkills.length}/${jobSkills.length} potential skills mentioned` : "Well-rounded skill set",
     ],
     recommendations: [
@@ -72,10 +187,16 @@ async function generateDemoJobMatchAnalysis(cvText: string, jobDescription: stri
         description: `Focus on ${missingSkills.slice(0, 1).join(", ")}. This would increase your match from ${skillMatch}% to ${Math.round(((matchedSkills.length + 1) / jobSkills.length) * 100)}%.`,
         priority: "high" as const,
       },
-      experienceScore < 80
+      cvYears === 0
+        ? {
+            title: "Add Experience Dates",
+            description: "Include date ranges (e.g., Jan 2020 - Dec 2023) for all your work experience. This helps us accurately calculate your experience level.",
+            priority: "high" as const,
+          }
+        : experienceScore < 80
         ? {
             title: "Build More Experience",
-            description: `You need ${Math.max(0, requiredYears - cvYears)} more year${Math.max(0, requiredYears - cvYears) !== 1 ? 's' : ''} of relevant experience. Consider projects or roles in this domain.`,
+            description: `You need ${(requiredYears - cvYears).toFixed(1)} more year${Math.round(requiredYears - cvYears) !== 1 ? 's' : ''} of relevant experience. Consider projects or roles in this domain.`,
             priority: "high" as const,
           }
         : {
