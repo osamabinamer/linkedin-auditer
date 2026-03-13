@@ -262,120 +262,122 @@ export default function JobMatchResults({ analysis, onReset }: JobMatchResultsPr
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl bg-white shadow-lg p-6"
+        className="rounded-2xl bg-gradient-to-br from-blue-50 to-slate-50 shadow-lg p-8 border border-blue-100"
       >
-        <h3 className="text-xl font-bold text-slate-900 mb-2">🎯 Skill Priority Matrix</h3>
-        <p className="text-sm text-slate-600 mb-6">
-          Top-left = Most important to learn. Shows importance vs your current gap
-        </p>
-        <div className="h-96 relative">
+        <div className="mb-6">
+          <h3 className="text-2xl font-bold text-slate-900 mb-2">🎯 Smart Skill Learning Path</h3>
+          <p className="text-sm text-slate-700 mb-3">
+            Each bubble is a skill. Left side = most urgent to learn. Bigger bubbles = higher importance to the job.
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full" style={{background: "linear-gradient(135deg, #ef4444, #dc2626)"}}></div><span className="text-red-700 font-semibold">Critical Now</span></div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full" style={{background: "linear-gradient(135deg, #f59e0b, #d97706)"}}></div><span className="text-amber-700 font-semibold">High Priority</span></div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full" style={{background: "linear-gradient(135deg, #3b82f6, #1d4ed8)"}}></div><span className="text-blue-700 font-semibold">Medium</span></div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full" style={{background: "linear-gradient(135deg, #10b981, #059669)"}}></div><span className="text-green-700 font-semibold">You're Ready</span></div>
+          </div>
+        </div>
+        <div className="h-[500px] relative bg-white rounded-xl p-4 border border-slate-200">
           <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+            <ScatterChart margin={{ top: 30, right: 30, bottom: 80, left: 100 }}>
+              <CartesianGrid strokeDasharray="5 5" stroke="#cbd5e1" vertical={true} horizontal={true} />
+              
               <XAxis
                 dataKey="gap"
-                name="Skill Gap"
+                name="What to Learn"
                 unit="%"
                 type="number"
                 domain={[0, 100]}
-                label={{ value: "Skill Gap (%) →", position: "insideBottomRight", offset: -10 }}
+                tick={{ fontSize: 11 }}
+                label={{ value: "Skill Gap: How much you need to learn (%) →", position: "bottom", offset: 25, fontSize: 12, fontWeight: "bold" }}
                 stroke="#64748b"
               />
               <YAxis
                 dataKey="importance"
-                name="Importance"
+                name="How Critical"
                 unit="%"
                 type="number"
                 domain={[0, 100]}
-                label={{ value: "← Importance (%)", angle: -90, position: "insideLeft" }}
+                tick={{ fontSize: 11 }}
+                label={{ value: "How Critical to Job: Importance (%)", angle: -90, position: "insideLeft", offset: 20, fontSize: 12, fontWeight: "bold" }}
                 stroke="#64748b"
               />
               <Tooltip
                 contentStyle={{
                   backgroundColor: "#1e293b",
-                  border: "2px solid #10b981",
-                  borderRadius: "8px",
+                  border: "3px solid #3b82f6",
+                  borderRadius: "12px",
                   color: "#f1f5f9",
-                  padding: "8px",
+                  padding: "12px",
+                  boxShadow: "0 8px 16px rgba(0,0,0,0.3)",
                 }}
-                cursor={{ fill: "rgba(16, 185, 129, 0.1)" }}
+                cursor={{ fill: "rgba(59, 130, 246, 0.15)" }}
                 content={({ active, payload }) => {
                   if (active && payload && payload[0]) {
-                    const data = payload[0].payload;
+                    const data = payload[0].payload as any;
+                    const priorityColor =
+                      data.gap <= 20
+                        ? "text-green-300"
+                        : data.gap <= 50
+                          ? "text-blue-300"
+                          : data.gap <= 75
+                            ? "text-yellow-300"
+                            : "text-red-300";
                     return (
-                      <div className="p-3 bg-slate-900 rounded-lg border border-green-500">
-                        <p className="font-semibold text-emerald-300">{data.name}</p>
-                        <p className="text-emerald-200">Importance: {data.importance}%</p>
-                        <p className="text-emerald-200">Your Gap: {data.gap}%</p>
-                        <p className="text-yellow-300 text-xs mt-1">{data.recommendation}</p>
+                      <div className="space-y-2">
+                        <p className="font-bold text-lg text-blue-300">{data.name}</p>
+                        <div className="border-t border-slate-500 pt-2">
+                          <p className="text-slate-300">Importance: <span className="font-bold text-amber-300">{data.importance}%</span></p>
+                          <p className="text-slate-300">Your Gap: <span className={`font-bold ${priorityColor}`}>{data.gap}%</span></p>
+                        </div>
+                        <div className="border-t border-slate-500 pt-2">
+                          <p className="text-xs text-slate-200 italic">{data.recommendation}</p>
+                        </div>
                       </div>
                     );
                   }
                   return null;
                 }}
               />
-              <Scatter name="Critical Skills" data={generatePriorityMatrixData(analysis)} fill="#ef4444" />
-              <Scatter name="Important Skills" data={generatePriorityMatrixData(analysis)} fill="#f59e0b" />
-              <Scatter name="Nice to Have" data={generatePriorityMatrixData(analysis)} fill="#3b82f6" />
+              
+              {/* Data points with dynamic colors */}
+              <Scatter name="Skills" data={getPriorityMatrixWithColors(analysis)}>
+                {getPriorityMatrixWithColors(analysis).map((entry: any, index: number) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={
+                      entry.gap <= 20
+                        ? "#10b981"
+                        : entry.gap <= 50
+                          ? "#3b82f6"
+                          : entry.gap <= 75
+                            ? "#f59e0b"
+                            : "#ef4444"
+                    }
+                  />
+                ))}
+              </Scatter>
             </ScatterChart>
           </ResponsiveContainer>
-          {/* Quadrant Labels */}
-          <div className="absolute top-8 left-8 text-xs font-bold text-red-500 opacity-30">
-            HIGH PRIORITY ↑
-          </div>
-          <div className="absolute bottom-8 right-8 text-xs font-bold text-green-500 opacity-30">
-            STRONG AREA →
-          </div>
         </div>
-      </motion.div>
 
-      {/* Skills Readiness Progress */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl bg-white shadow-lg p-6"
-      >
-        <h3 className="text-xl font-bold text-slate-900 mb-6">📈 Skills Readiness by Category</h3>
-        <div className="space-y-6">
-          {generateSkillCategoryBreakdown(analysis.skillMatches).map((category, idx) => (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: idx * 0.1 }}
-              className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-lg p-4 border border-slate-200"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <p className="font-semibold text-slate-900">{category.category}</p>
-                  <p className="text-xs text-slate-600">
-                    {category.proficiency}% overall proficiency • {category.count} skills
-                  </p>
-                </div>
-                <span className="text-2xl font-bold text-blue-600">{category.proficiency}%</span>
-              </div>
-              <div className="w-full bg-slate-300 rounded-full h-3 overflow-hidden">
-                <motion.div
-                  className={`h-full rounded-full`}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${category.proficiency}%` }}
-                  transition={{ duration: 1, ease: "easeOut" }}
-                  style={{
-                    background: `linear-gradient(90deg, 
-                      ${category.proficiency >= 80 ? "#10b981" : category.proficiency >= 60 ? "#3b82f6" : "#f59e0b"}
-                      0%,
-                      ${category.proficiency >= 80 ? "#059669" : category.proficiency >= 60 ? "#1d4ed8" : "#d97706"}
-                      100%)`,
-                  }}
-                />
-              </div>
-              {category.proficiency < 80 && (
-                <p className="text-xs text-orange-600 mt-2">
-                  📌 Focus on gaining {80 - category.proficiency}% more proficiency
-                </p>
-              )}
-            </motion.div>
-          ))}
+        {/* Priority Guide */}
+        <div className="grid md:grid-cols-2 gap-4 mt-6 text-sm">
+          <div className="p-4 bg-red-50 border-l-4 border-red-500 rounded-lg">
+            <p className="font-bold text-red-900 mb-1">🔴 Critical Now (Gap 75%+)</p>
+            <p className="text-red-800">Start learning these immediately. They're essential for the role and you're far behind.</p>
+          </div>
+          <div className="p-4 bg-amber-50 border-l-4 border-amber-500 rounded-lg">
+            <p className="font-bold text-amber-900 mb-1">🟡 High Priority (Gap 50-74%)</p>
+            <p className="text-amber-800">Focus on these next. The job really needs these, and you're somewhat prepared.</p>
+          </div>
+          <div className="p-4 bg-blue-50 border-l-4 border-blue-500 rounded-lg">
+            <p className="font-bold text-blue-900 mb-1\">🔵 Medium (Gap 20-49%)</p>
+            <p className="text-blue-800">Good foundation. Build on your existing knowledge with targeted learning.</p>
+          </div>
+          <div className="p-4 bg-green-50 border-l-4 border-green-500 rounded-lg">
+            <p className="font-bold text-green-900 mb-1\">✅ Ready (Gap 0-19%)</p>
+            <p className="text-green-800">You're well-prepared. Maintain and deepen expertise through practice.</p>
+          </div>
         </div>
       </motion.div>
 
@@ -612,6 +614,13 @@ function generatePriorityMatrixData(analysis: JobMatchAnalysis) {
       recommendation,
     };
   });
+}
+
+function getPriorityMatrixWithColors(analysis: JobMatchAnalysis) {
+  return generatePriorityMatrixData(analysis).map((item) => ({
+    ...item,
+    size: item.importance / 5,
+  }));
 }
 
 function generateSkillCategoryBreakdown(skillMatches: SkillMatch[]) {
