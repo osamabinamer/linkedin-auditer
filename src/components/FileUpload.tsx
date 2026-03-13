@@ -24,23 +24,39 @@ export default function FileUpload({ onUpload, loading, error }: FileUploadProps
 
   // Helper to extract text from PDF using pdfjs-dist (browser-only)
   const extractTextFromPDF = async (file: File) => {
-    // Dynamically import only in the browser
-    // @ts-ignore
-    const pdfjsLib: any = await import("pdfjs-dist/legacy/build/pdf");
-    // Use CDN worker for browser compatibility
-    // @ts-ignore
-    pdfjsLib.GlobalWorkerOptions.workerSrc =
-      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.5.207/pdf.worker.min.js";
+    try {
+      console.log("Step 1: Importing pdfjs-dist...");
+      // @ts-ignore
+      const pdfjsLib: any = await import("pdfjs-dist/legacy/build/pdf");
+      console.log("Step 2: pdfjs-dist imported successfully, type:", typeof pdfjsLib);
 
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    let text = "";
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      text += content.items.map((item: any) => item.str).join(" ") + "\n";
+      console.log("Step 3: Setting worker source to public static path...");
+      // Use local public worker file instead of CDN
+      // @ts-ignore
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
+      console.log("Step 4: Worker source set to /pdf.worker.min.js");
+
+      console.log("Step 5: Converting file to array buffer...");
+      const arrayBuffer = await file.arrayBuffer();
+      console.log("Step 6: Array buffer ready, size:", arrayBuffer.byteLength);
+
+      console.log("Step 7: Loading PDF document...");
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      console.log("Step 8: PDF loaded, pages:", pdf.numPages);
+
+      let text = "";
+      for (let i = 1; i <= pdf.numPages; i++) {
+        console.log(`Step 9.${i}: Extracting page ${i}...`);
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        text += content.items.map((item: any) => item.str).join(" ") + "\n";
+      }
+      console.log("Step 10: Text extraction complete, length:", text.length);
+      return text;
+    } catch (error) {
+      console.error("Error in extractTextFromPDF:", error);
+      throw error;
     }
-    return text;
   };
 
   const handleDrop = async (e: React.DragEvent) => {
@@ -50,9 +66,17 @@ export default function FileUpload({ onUpload, loading, error }: FileUploadProps
     const files = e.dataTransfer.files;
     if (files.length > 0) {
       const file = files[0];
+      console.log("File dropped:", file.name, file.type, file.size);
       if (file.type === "application/pdf") {
-        const text = await extractTextFromPDF(file);
-        onUpload(text);
+        try {
+          console.log("Starting PDF extraction...");
+          const text = await extractTextFromPDF(file);
+          console.log("PDF extraction successful, text length:", text.length);
+          onUpload(text);
+        } catch (error) {
+          console.error("PDF extraction failed:", error);
+          alert(`Error processing PDF: ${error instanceof Error ? error.message : "Unknown error"}`);
+        }
       } else {
         alert("Please upload a PDF file");
       }
@@ -63,9 +87,17 @@ export default function FileUpload({ onUpload, loading, error }: FileUploadProps
     const files = e.currentTarget.files;
     if (files && files.length > 0) {
       const file = files[0];
+      console.log("File selected:", file.name, file.type, file.size);
       if (file.type === "application/pdf") {
-        const text = await extractTextFromPDF(file);
-        onUpload(text);
+        try {
+          console.log("Starting PDF extraction...");
+          const text = await extractTextFromPDF(file);
+          console.log("PDF extraction successful, text length:", text.length);
+          onUpload(text);
+        } catch (error) {
+          console.error("PDF extraction failed:", error);
+          alert(`Error processing PDF: ${error instanceof Error ? error.message : "Unknown error"}`);
+        }
       } else {
         alert("Please upload a PDF file");
       }
