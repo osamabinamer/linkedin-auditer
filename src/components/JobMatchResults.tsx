@@ -1,0 +1,298 @@
+"use client";
+
+import { motion } from "framer-motion";
+import { useState } from "react";
+
+interface SkillMatch {
+  skill: string;
+  proficiency: "expert" | "intermediate" | "beginner" | "missing";
+  importance: "required" | "preferred" | "nice-to-have";
+}
+
+interface JobMatchAnalysis {
+  overallMatch: number;
+  summary: string;
+  skillMatches: SkillMatch[];
+  missingSkills: string[];
+  strengths: string[];
+  weaknesses: string[];
+  recommendations: Array<{
+    title: string;
+    description: string;
+    priority: "high" | "medium" | "low";
+  }>;
+  fitScore: number;
+  experienceGap: string;
+}
+
+interface JobMatchResultsProps {
+  analysis: JobMatchAnalysis;
+  onReset: () => void;
+}
+
+export default function JobMatchResults({ analysis, onReset }: JobMatchResultsProps) {
+  const [expandedSkill, setExpandedSkill] = useState<string | null>(null);
+
+  const getProficiencyColor = (prof: string) => {
+    switch (prof) {
+      case "expert":
+        return "bg-emerald-100 text-emerald-800 border-emerald-300";
+      case "intermediate":
+        return "bg-blue-100 text-blue-800 border-blue-300";
+      case "beginner":
+        return "bg-amber-100 text-amber-800 border-amber-300";
+      case "missing":
+        return "bg-red-100 text-red-800 border-red-300";
+      default:
+        return "bg-slate-100 text-slate-800 border-slate-300";
+    }
+  };
+
+  const getImportanceLabel = (importance: string) => {
+    switch (importance) {
+      case "required":
+        return "🎯";
+      case "preferred":
+        return "📌";
+      case "nice-to-have":
+        return "✨";
+      default:
+        return "•";
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+      className="space-y-8"
+    >
+      {/* Overall Match Score */}
+      <motion.div className="rounded-2xl bg-white shadow-lg overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-600 to-cyan-500 p-8 text-white">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-3xl font-bold">Job Match Analysis</h2>
+            <motion.div
+              className="text-6xl font-bold"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, type: "spring" }}
+            >
+              {analysis.overallMatch}%
+            </motion.div>
+          </div>
+          <p className="text-lg opacity-90 mb-4">{analysis.summary}</p>
+          <div className="w-full bg-white/20 rounded-full h-3 overflow-hidden">
+            <motion.div
+              className="h-full bg-white rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${analysis.overallMatch}%` }}
+              transition={{ duration: 1, ease: "easeOut" }}
+            />
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Fit Score and Experience Gap */}
+      <div className="grid md:grid-cols-2 gap-6">
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="rounded-2xl bg-white shadow-lg p-6 border-l-4 border-emerald-500"
+        >
+          <h3 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-2">
+            Fit Score
+          </h3>
+          <p className="text-4xl font-bold text-emerald-600 mb-2">
+            {analysis.fitScore}%
+          </p>
+          <p className="text-slate-600">Based on skills, experience, and alignment</p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="rounded-2xl bg-white shadow-lg p-6 border-l-4 border-amber-500"
+        >
+          <h3 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-2">
+            Experience Gap
+          </h3>
+          <p className="text-xl font-semibold text-amber-600 mb-2">
+            {analysis.experienceGap}
+          </p>
+          <p className="text-slate-600">Estimated gap vs. job requirements</p>
+        </motion.div>
+      </div>
+
+      {/* Strengths */}
+      {analysis.strengths.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl bg-white shadow-lg p-6 border-l-4 border-emerald-500"
+        >
+          <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+            ✅ Your Strengths
+          </h3>
+          <div className="space-y-3">
+            {analysis.strengths.map((strength, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.1 }}
+                className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900"
+              >
+                ✓ {strength}
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Weaknesses */}
+      {analysis.weaknesses.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl bg-white shadow-lg p-6 border-l-4 border-red-500"
+        >
+          <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+            ⚠️ Areas for Improvement
+          </h3>
+          <div className="space-y-3">
+            {analysis.weaknesses.map((weakness, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.1 }}
+                className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-900"
+              >
+                ✗ {weakness}
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Skill Matches */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl bg-white shadow-lg p-6"
+      >
+        <h3 className="text-xl font-bold text-slate-900 mb-4">Skills Analysis</h3>
+        <div className="space-y-3">
+          {analysis.skillMatches.map((skill, idx) => (
+            <motion.div
+              key={idx}
+              onClick={() =>
+                setExpandedSkill(expandedSkill === skill.skill ? null : skill.skill)
+              }
+              className="cursor-pointer"
+            >
+              <div
+                className={`p-4 rounded-lg border-2 transition-colors ${getProficiencyColor(
+                  skill.proficiency
+                )}`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 flex-1">
+                    <span className="text-xl">
+                      {getImportanceLabel(skill.importance)}
+                    </span>
+                    <div>
+                      <p className="font-semibold">{skill.skill}</p>
+                      <p className="text-sm opacity-75">
+                        {skill.importance === "required" && "Required"}
+                        {skill.importance === "preferred" && "Preferred"}
+                        {skill.importance === "nice-to-have" && "Nice to have"}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="font-semibold capitalize">{skill.proficiency}</span>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Missing Skills */}
+      {analysis.missingSkills.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl bg-white shadow-lg p-6 border-l-4 border-orange-500"
+        >
+          <h3 className="text-xl font-bold text-slate-900 mb-4">Missing Skills</h3>
+          <div className="flex flex-wrap gap-2">
+            {analysis.missingSkills.map((skill, idx) => (
+              <motion.span
+                key={idx}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: idx * 0.05 }}
+                className="px-4 py-2 rounded-full bg-orange-100 text-orange-800 border border-orange-300 text-sm font-medium"
+              >
+                {skill}
+              </motion.span>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Recommendations */}
+      {analysis.recommendations.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl bg-white shadow-lg p-6"
+        >
+          <h3 className="text-xl font-bold text-slate-900 mb-4">Recommendations</h3>
+          <div className="space-y-4">
+            {analysis.recommendations.map((rec, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.1 }}
+                className="p-4 rounded-lg border-l-4 bg-slate-50"
+                style={{
+                  borderColor:
+                    rec.priority === "high"
+                      ? "#ef4444"
+                      : rec.priority === "medium"
+                        ? "#f59e0b"
+                        : "#6b7280",
+                }}
+              >
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl mt-1">
+                    {rec.priority === "high" ? "🔴" : rec.priority === "medium" ? "🟡" : "🟢"}
+                  </span>
+                  <div className="flex-1">
+                    <p className="font-semibold text-slate-900">{rec.title}</p>
+                    <p className="text-slate-700 text-sm mt-1">{rec.description}</p>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Reset Button */}
+      <motion.button
+        onClick={onReset}
+        className="w-full py-4 rounded-lg bg-slate-200 text-slate-900 font-semibold text-lg hover:bg-slate-300 transition-all"
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+      >
+        Analyze Another
+      </motion.button>
+    </motion.div>
+  );
+}

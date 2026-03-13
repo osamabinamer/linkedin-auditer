@@ -1,5 +1,82 @@
 import { NextRequest, NextResponse } from "next/server";
 
+async function generateDemoJobMatchAnalysis(cvText: string, jobDescription: string) {
+  const cvLower = cvText.toLowerCase();
+  const jobLower = jobDescription.toLowerCase();
+  
+  // Extract skills mentioned
+  const technicalSkills = ["python", "javascript", "typescript", "java", "c++", "react", "nodejs", "aws", "docker", "sql", "git", "agile", "project management"];
+  const cvSkills = technicalSkills.filter(skill => cvLower.includes(skill));
+  const jobSkills = technicalSkills.filter(skill => jobLower.includes(skill));
+  
+  const matchedSkills = cvSkills.filter(skill => jobSkills.includes(skill));
+  const missingSkills = jobSkills.filter(skill => !cvSkills.includes(skill));
+  
+  // Calculate match percentage
+  const overallMatch = jobSkills.length > 0 
+    ? Math.round((matchedSkills.length / jobSkills.length) * 100)
+    : 60;
+  
+  // Experience analysis
+  const cvHasYears = /\d+\+?\s*years?/i.test(cvText);
+  const jobRequiresYears = /\d+\+?\s*years?/i.test(jobDescription);
+  const experienceGap = cvHasYears ? "Minimal" : "Experience details needed";
+  
+  const fitScore = Math.round(overallMatch * 0.7 + (cvHasYears ? 20 : 0));
+  
+  return {
+    overallMatch,
+    summary: `Your profile has a ${overallMatch}% match with this job posting. You demonstrate ${matchedSkills.length} of the required ${jobSkills.length} key skills. ${missingSkills.length > 0 ? `Consider developing expertise in ${missingSkills.slice(0, 2).join(" and ")} to strengthen your candidacy.` : "Strong alignment detected!"}`,
+    skillMatches: [
+      ...matchedSkills.map(skill => ({
+        skill,
+        proficiency: cvLower.match(new RegExp(`senior|expert|advanced.*${skill}`)) ? "expert" : "intermediate" as const,
+        importance: jobLower.match(new RegExp(`must have|required.*${skill}`)) ? "required" as const : "preferred" as const,
+      })),
+      ...missingSkills.map(skill => ({
+        skill,
+        proficiency: "missing" as const,
+        importance: "required" as const,
+      })),
+    ],
+    missingSkills,
+    strengths: [
+      `You possess ${matchedSkills.length} out of ${jobSkills.length} required skills`,
+      cvHasYears ? "You have documented professional experience" : "Your profile is active and searchable",
+      "Strong foundation for this role",
+    ],
+    weaknesses: [
+      missingSkills.length > 0 ? `Missing ${missingSkills.length} key skills: ${missingSkills.slice(0, 2).join(", ")}` : "No major skill gaps detected",
+      "Consider adding more project details and achievements",
+      "Quantify your impact with metrics",
+    ],
+    recommendations: [
+      {
+        title: `Master ${missingSkills[0] || "required skills"}`,
+        description: `This is a key requirement. Consider taking online courses or working on projects to develop expertise in this area.`,
+        priority: "high" as const,
+      },
+      {
+        title: "Highlight Relevant Projects",
+        description: `Add 2-3 projects that align with the job requirements. Include metrics showing your impact and results.`,
+        priority: "high" as const,
+      },
+      {
+        title: "Get Recommendations",
+        description: `Request recommendations from managers or colleagues who can speak to the skills this employer is seeking.`,
+        priority: "medium" as const,
+      },
+      {
+        title: "Update Your Headline",
+        description: `Include keywords from the job posting like "${jobSkills.slice(0, 2).join(", ")}" to improve visibility.`,
+        priority: "medium" as const,
+      },
+    ],
+    fitScore,
+    experienceGap,
+  };
+}
+
 async function generateDemoAnalysis(profileText: string) {
   // Demo/fallback analysis when Ollama is not available
   // Analyzes the actual profile text to generate realistic metrics
@@ -135,11 +212,92 @@ ${profileText.substring(0, 3000)}`;
   }
 }
 
+async function analyzeJobMatchWithOllama(cvText: string, jobDescription: string) {
+  const matchPrompt = `You are an expert job matching AI. Analyze the CV and job description, then provide a JSON response ONLY with this exact structure (no additional text):
+{
+  "overallMatch": <0-100>,
+  "summary": "<2-3 sentence summary of the match>",
+  "skillMatches": [
+    {"skill": "<skill>", "proficiency": "expert|intermediate|beginner|missing", "importance": "required|preferred|nice-to-have"},
+    ...
+  ],
+  "missingSkills": ["<skill1>", "<skill2>"],
+  "strengths": ["<strength1>", "<strength2>", "<strength3>"],
+  "weaknesses": ["<weakness1>", "<weakness2>"],
+  "recommendations": [
+    {"title": "<title>", "description": "<advice>", "priority": "high|medium|low"},
+    {"title": "<title>", "description": "<advice>", "priority": "high|medium|low"},
+    ...
+  ],
+  "fitScore": <0-100>,
+  "experienceGap": "<description>"
+}
+
+CV:
+${cvText.substring(0, 2000)}
+
+Job Description:
+${jobDescription.substring(0, 2000)}`;
+
+  try {
+    const response = await fetch("http://localhost:11434/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "mistral",
+        prompt: matchPrompt,
+        stream: false,
+        temperature: 0.7,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Ollama error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const responseText = data.response || "";
+
+    // Extract JSON from response
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("Could not extract JSON from response");
+    }
+
+    return JSON.parse(jsonMatch[0]);
+  } catch (error) {
+    console.error("Ollama error:", error);
+    console.log("Falling back to demo job match analysis...");
+    return generateDemoJobMatchAnalysis(cvText, jobDescription);
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { text } = await request.json();
+    const { text, jobDescription, mode } = await request.json();
     let profileText = text || "";
 
+    // Job Match Mode
+    if (mode === "match" && jobDescription) {
+      if (!profileText.trim() || !jobDescription.trim()) {
+        return NextResponse.json(
+          { error: "Both CV and job description are required" },
+          { status: 400 }
+        );
+      }
+
+      let analysis;
+      try {
+        analysis = await analyzeJobMatchWithOllama(profileText, jobDescription);
+      } catch (error) {
+        console.error("Job match analysis error:", error);
+        analysis = await generateDemoJobMatchAnalysis(profileText, jobDescription);
+      }
+
+      return NextResponse.json(analysis);
+    }
+
+    // Profile Analysis Mode (default)
     if (!profileText.trim()) {
       console.log("No text extracted - using demo mode analysis");
       const genericProfile = "LinkedIn Profile - Software Engineer with experience in web development, cloud technologies, problem solving and team collaboration. Skills include JavaScript, React, Node.js, Python, AWS. Led projects improving system performance by 40%.";
@@ -162,3 +320,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(analysis);
   }
 }
+

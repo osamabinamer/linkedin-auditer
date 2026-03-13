@@ -2,28 +2,40 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import FileUpload from "@/components/FileUpload";
+import CVJobMatcher from "@/components/CVJobMatcher";
 import AnalysisResults from "@/components/AnalysisResults";
+import JobMatchResults from "@/components/JobMatchResults";
 
 export default function Home() {
   const [analysis, setAnalysis] = useState(null);
+  const [jobMatchAnalysis, setJobMatchAnalysis] = useState(null);
+  const [analysisMode, setAnalysisMode] = useState<"profile" | "match" | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleUpload = async (text: string) => {
+  const handleAnalyze = async (cvText: string, jobDescription: string, mode: "profile" | "match") => {
     setLoading(true);
     setError("");
     try {
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ 
+          text: cvText, 
+          jobDescription: jobDescription || null,
+          mode 
+        }),
       });
       if (!response.ok) {
-        throw new Error("Failed to analyze profile");
+        throw new Error(`Failed to analyze ${mode === "profile" ? "profile" : "job match"}`);
       }
       const data = await response.json();
-      setAnalysis(data);
+      if (mode === "profile") {
+        setAnalysis(data);
+      } else {
+        setJobMatchAnalysis(data);
+      }
+      setAnalysisMode(mode);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -56,22 +68,29 @@ export default function Home() {
             </h1>
           </motion.div>
           <p className="text-lg text-slate-700 max-w-2xl mx-auto leading-relaxed font-medium">
-            Transform your LinkedIn profile into actionable insights with intelligent analysis
+            Transform your LinkedIn profile into actionable insights and match your CV against job descriptions
           </p>
         </motion.header>
 
-        {!analysis && (
-          <FileUpload
-            onUpload={handleUpload}
+        {!analysis && !jobMatchAnalysis && (
+          <CVJobMatcher
+            onAnalyze={handleAnalyze}
             loading={loading}
             error={error}
           />
         )}
 
-        {analysis && (
+        {analysis && analysisMode === "profile" && (
           <AnalysisResults
             analysis={analysis}
             onReset={() => setAnalysis(null)}
+          />
+        )}
+
+        {jobMatchAnalysis && analysisMode === "match" && (
+          <JobMatchResults
+            analysis={jobMatchAnalysis}
+            onReset={() => setJobMatchAnalysis(null)}
           />
         )}
       </div>
