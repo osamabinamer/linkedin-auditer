@@ -2,6 +2,22 @@
 
 import { motion } from "framer-motion";
 import { useState } from "react";
+import {
+  BarChart,
+  Bar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
 
 interface SkillMatch {
   skill: string;
@@ -177,6 +193,99 @@ export default function JobMatchResults({ analysis, onReset }: JobMatchResultsPr
         </motion.div>
       )}
 
+      {/* Skill Match Visualization */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl bg-white shadow-lg p-6"
+      >
+        <h3 className="text-xl font-bold text-slate-900 mb-6">Skills Breakdown</h3>
+        <div className="grid md:grid-cols-2 gap-8">
+          {/* Skills Distribution */}
+          <div className="flex flex-col items-center justify-center">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={generateSkillDistribution(analysis.skillMatches)}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="category" stroke="#64748b" />
+                <YAxis stroke="#64748b" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#1e293b",
+                    border: "1px solid #64748b",
+                    borderRadius: "8px",
+                    color: "#f1f5f9",
+                  }}
+                  cursor={{ fill: "rgba(59, 130, 246, 0.1)" }}
+                />
+                <Bar dataKey="count" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+            <p className="text-sm text-slate-600 mt-4 text-center">
+              Distribution of skill proficiency levels in your profile
+            </p>
+          </div>
+
+          {/* Proficiency Radar */}
+          <div className="flex flex-col items-center justify-center">
+            <ResponsiveContainer width="100%" height={300}>
+              <RadarChart data={generateProficiencyData(analysis.skillMatches)}>
+                <PolarGrid stroke="#cbd5e1" />
+                <PolarAngleAxis dataKey="name" stroke="#64748b" />
+                <PolarRadiusAxis angle={90} domain={[0, 100]} stroke="#94a3b8" />
+                <Radar
+                  name="Your Proficiency"
+                  dataKey="value"
+                  stroke="#3b82f6"
+                  fill="#3b82f6"
+                  fillOpacity={0.6}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#1e293b",
+                    border: "1px solid #64748b",
+                    borderRadius: "8px",
+                    color: "#f1f5f9",
+                  }}
+                />
+                <Legend />
+              </RadarChart>
+            </ResponsiveContainer>
+            <p className="text-sm text-slate-600 mt-4 text-center">
+              Your proficiency levels across key skills
+            </p>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Importance Priority Chart */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl bg-white shadow-lg p-6"
+      >
+        <h3 className="text-xl font-bold text-slate-900 mb-6">Skills by Importance</h3>
+        <div className="h-64 flex items-center justify-center">
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={generateImportanceData(analysis.skillMatches)} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis type="number" stroke="#64748b" />
+              <YAxis dataKey="skill" type="category" stroke="#64748b" width={100} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#1e293b",
+                  border: "1px solid #64748b",
+                  borderRadius: "8px",
+                  color: "#f1f5f9",
+                }}
+                cursor={{ fill: "rgba(59, 130, 246, 0.1)" }}
+              />
+              <Legend />
+              <Bar dataKey="proficiency" fill="#8b5cf6" radius={[0, 8, 8, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </motion.div>
+
       {/* Skill Matches */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -295,4 +404,54 @@ export default function JobMatchResults({ analysis, onReset }: JobMatchResultsPr
       </motion.button>
     </motion.div>
   );
+}
+
+// Helper functions to prepare data for charts
+function generateSkillDistribution(skillMatches: SkillMatch[]) {
+  const distribution = {
+    expert: 0,
+    intermediate: 0,
+    beginner: 0,
+    missing: 0,
+  };
+
+  skillMatches.forEach((skill) => {
+    distribution[skill.proficiency as keyof typeof distribution]++;
+  });
+
+  return [
+    { category: "Expert", count: distribution.expert, fill: "#10b981" },
+    { category: "Intermediate", count: distribution.intermediate, fill: "#3b82f6" },
+    { category: "Beginner", count: distribution.beginner, fill: "#f59e0b" },
+    { category: "Missing", count: distribution.missing, fill: "#ef4444" },
+  ];
+}
+
+function generateProficiencyData(skillMatches: SkillMatch[]) {
+  const proficiencyMap = {
+    expert: 100,
+    intermediate: 75,
+    beginner: 40,
+    missing: 0,
+  };
+
+  return skillMatches.slice(0, 6).map((skill) => ({
+    name: skill.skill.slice(0, 10),
+    value: proficiencyMap[skill.proficiency as keyof typeof proficiencyMap],
+  }));
+}
+
+function generateImportanceData(skillMatches: SkillMatch[]) {
+  const proficiencyScore = {
+    expert: 100,
+    intermediate: 75,
+    beginner: 40,
+    missing: 10,
+  };
+
+  return skillMatches.slice(0, 8).map((skill) => ({
+    skill: skill.skill.slice(0, 15),
+    proficiency: proficiencyScore[skill.proficiency as keyof typeof proficiencyScore],
+    importance: skill.importance,
+  }));
 }
