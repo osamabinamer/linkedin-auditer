@@ -34,6 +34,9 @@ interface SkillMatch {
 
 interface JobMatchAnalysis {
   overallMatch: number;
+  skillMatch?: number;
+  experienceScore?: number;
+  profileCompleteness?: number;
   summary: string;
   skillMatches: SkillMatch[];
   missingSkills: string[];
@@ -118,35 +121,109 @@ export default function JobMatchResults({ analysis, onReset }: JobMatchResultsPr
       </motion.div>
 
       {/* Fit Score and Experience Gap */}
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-3 gap-6">
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="rounded-2xl bg-white shadow-lg p-6 border-l-4 border-emerald-500"
+          className="rounded-2xl bg-white shadow-lg p-6 border-l-4 border-blue-500"
         >
           <h3 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-2">
-            Fit Score
+            Skills Match
           </h3>
-          <p className="text-4xl font-bold text-emerald-600 mb-2">
-            {analysis.fitScore}%
+          <p className="text-4xl font-bold text-blue-600 mb-2">
+            {analysis.skillMatch ?? 0}%
           </p>
-          <p className="text-slate-600">Based on skills, experience, and alignment</p>
+          <p className="text-sm text-slate-600">Matched required skills</p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, x: 0 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1 }}
+          className="rounded-2xl bg-white shadow-lg p-6 border-l-4 border-purple-500"
+        >
+          <h3 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-2">
+            Experience Level
+          </h3>
+          <p className="text-4xl font-bold text-purple-600 mb-2">
+            {analysis.experienceScore ?? 0}%
+          </p>
+          <p className="text-sm text-slate-600">{analysis.experienceGap}</p>
         </motion.div>
 
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="rounded-2xl bg-white shadow-lg p-6 border-l-4 border-amber-500"
+          transition={{ delay: 0.2 }}
+          className="rounded-2xl bg-white shadow-lg p-6 border-l-4 border-emerald-500"
         >
           <h3 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-2">
-            Experience Gap
+            Profile Strength
           </h3>
-          <p className="text-xl font-semibold text-amber-600 mb-2">
-            {analysis.experienceGap}
+          <p className="text-4xl font-bold text-emerald-600 mb-2">
+            {analysis.profileCompleteness ?? 0}%
           </p>
-          <p className="text-slate-600">Estimated gap vs. job requirements</p>
+          <p className="text-sm text-slate-600">Documentation & detail</p>
         </motion.div>
       </div>
+
+      {/* Score Calculation Breakdown */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl bg-gradient-to-r from-slate-50 to-blue-50 shadow-lg p-6 border border-blue-100"
+      >
+        <h3 className="text-lg font-bold text-slate-900 mb-4">📊 Overall Match Score Calculation</h3>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">💼</span>
+              <div>
+                <p className="font-semibold text-slate-900">Skills Match</p>
+                <p className="text-xs text-slate-600">50% weight - most important</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-blue-600">{Math.round((analysis.skillMatch ?? 0) * 0.5)}%</p>
+              <p className="text-xs text-slate-600">({analysis.skillMatch}% × 0.5)</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">📅</span>
+              <div>
+                <p className="font-semibold text-slate-900">Experience Level</p>
+                <p className="text-xs text-slate-600">30% weight - years & relevance</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-purple-600">{Math.round((analysis.experienceScore ?? 0) * 0.3)}%</p>
+              <p className="text-xs text-slate-600">({analysis.experienceScore}% × 0.3)</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">✍️</span>
+              <div>
+                <p className="font-semibold text-slate-900">Profile Completeness</p>
+                <p className="text-xs text-slate-600">20% weight - documentation quality</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-emerald-600">{Math.round((analysis.profileCompleteness ?? 0) * 0.2)}%</p>
+              <p className="text-xs text-slate-600">({analysis.profileCompleteness}% × 0.2)</p>
+            </div>
+          </div>
+
+          {/* Total */}
+          <div className="pt-2 mt-2 border-t-2 border-blue-300 flex items-center justify-between">
+            <p className="font-bold text-slate-900 text-lg">Total Overall Match Score</p>
+            <p className="text-3xl font-bold text-blue-600">{analysis.overallMatch}%</p>
+          </div>
+        </div>
+      </motion.div>
 
       {/* Strengths */}
       {analysis.strengths.length > 0 && (

@@ -12,21 +12,37 @@ async function generateDemoJobMatchAnalysis(cvText: string, jobDescription: stri
   const matchedSkills = cvSkills.filter(skill => jobSkills.includes(skill));
   const missingSkills = jobSkills.filter(skill => !cvSkills.includes(skill));
   
-  // Calculate match percentage
-  const overallMatch = jobSkills.length > 0 
+  // Calculate base skill match
+  const skillMatch = jobSkills.length > 0 
     ? Math.round((matchedSkills.length / jobSkills.length) * 100)
     : 60;
   
   // Experience analysis
-  const cvHasYears = /\d+\+?\s*years?/i.test(cvText);
-  const jobRequiresYears = /\d+\+?\s*years?/i.test(jobDescription);
-  const experienceGap = cvHasYears ? "Minimal" : "Experience details needed";
+  const yearsMatch = cvText.match(/(\d+)\+?\s*years?/i);
+  const yearsRequiredMatch = jobDescription.match(/(\d+)\+?\s*years?/i);
+  const cvYears = yearsMatch ? parseInt(yearsMatch[1]) : 0;
+  const requiredYears = yearsRequiredMatch ? parseInt(yearsRequiredMatch[1]) : 0;
   
-  const fitScore = Math.round(overallMatch * 0.7 + (cvHasYears ? 20 : 0));
+  const experienceScore = cvYears >= requiredYears ? 100 : Math.round((cvYears / Math.max(requiredYears, 1)) * 100);
+  const experienceGap = cvYears >= requiredYears ? "Perfect match" : `${requiredYears - cvYears}+ years needed`;
+  
+  // Profile completeness (based on skill count and descriptions)
+  const profileCompleteness = Math.min(100, cvSkills.length * 10 + (cvText.length > 200 ? 30 : 20));
+  
+  // Overall fit score: weighted calculation
+  // 50% skills match, 30% experience, 20% profile completeness
+  const overallMatch = Math.round(
+    skillMatch * 0.5 + 
+    experienceScore * 0.3 + 
+    profileCompleteness * 0.2
+  );
   
   return {
     overallMatch,
-    summary: `Your profile has a ${overallMatch}% match with this job posting. You demonstrate ${matchedSkills.length} of the required ${jobSkills.length} key skills. ${missingSkills.length > 0 ? `Consider developing expertise in ${missingSkills.slice(0, 2).join(" and ")} to strengthen your candidacy.` : "Strong alignment detected!"}`,
+    skillMatch,
+    experienceScore,
+    profileCompleteness,
+    summary: `Your overall job match is ${overallMatch}%! You have ${matchedSkills.length}/${jobSkills.length} required skills (${skillMatch}%). Your experience level scores ${experienceScore}%. ${missingSkills.length > 0 ? `Focus on ${missingSkills.slice(0, 2).join(" and ")} to strengthen your candidacy.` : "Excellent alignment!"}`,
     skillMatches: [
       ...matchedSkills.map(skill => ({
         skill,
@@ -41,38 +57,39 @@ async function generateDemoJobMatchAnalysis(cvText: string, jobDescription: stri
     ],
     missingSkills,
     strengths: [
-      `You possess ${matchedSkills.length} out of ${jobSkills.length} required skills`,
-      cvHasYears ? "You have documented professional experience" : "Your profile is active and searchable",
-      "Strong foundation for this role",
+      `Skills match: ${skillMatch}% (${matchedSkills.length}/${jobSkills.length} required skills)`,
+      `Experience level: ${cvYears} year${cvYears !== 1 ? 's' : ''} ${experienceScore >= 80 ? '✓ Meets requirement' : '⚠️ Below requirement'}`,
+      `Profile strength: ${profileCompleteness}% (${cvSkills.length} skills documented)`,
     ],
     weaknesses: [
-      missingSkills.length > 0 ? `Missing ${missingSkills.length} key skills: ${missingSkills.slice(0, 2).join(", ")}` : "No major skill gaps detected",
-      "Consider adding more project details and achievements",
-      "Quantify your impact with metrics",
+      missingSkills.length > 0 ? `Missing ${missingSkills.length} key skills: ${missingSkills.slice(0, 2).join(", ")}` : "All key skills covered!",
+      experienceScore < 60 ? `Experience gap: ${requiredYears - cvYears}+ more years needed` : "Experience is appropriate",
+      cvSkills.length < jobSkills.length ? `Only ${cvSkills.length}/${jobSkills.length} potential skills mentioned` : "Well-rounded skill set",
     ],
     recommendations: [
       {
-        title: `Master ${missingSkills[0] || "required skills"}`,
-        description: `This is a key requirement. Consider taking online courses or working on projects to develop expertise in this area.`,
+        title: "Priority: Acquire Missing Skills",
+        description: `Focus on ${missingSkills.slice(0, 1).join(", ")}. This would increase your match from ${skillMatch}% to ${Math.round(((matchedSkills.length + 1) / jobSkills.length) * 100)}%.`,
         priority: "high" as const,
       },
+      experienceScore < 80
+        ? {
+            title: "Build More Experience",
+            description: `You need ${Math.max(0, requiredYears - cvYears)} more year${Math.max(0, requiredYears - cvYears) !== 1 ? 's' : ''} of relevant experience. Consider projects or roles in this domain.`,
+            priority: "high" as const,
+          }
+        : {
+            title: "Deepen Your Expertise",
+            description: "Your experience is solid. Focus on becoming an expert in your main technologies.",
+            priority: "medium" as const,
+          },
       {
-        title: "Highlight Relevant Projects",
-        description: `Add 2-3 projects that align with the job requirements. Include metrics showing your impact and results.`,
-        priority: "high" as const,
-      },
-      {
-        title: "Get Recommendations",
-        description: `Request recommendations from managers or colleagues who can speak to the skills this employer is seeking.`,
-        priority: "medium" as const,
-      },
-      {
-        title: "Update Your Headline",
-        description: `Include keywords from the job posting like "${jobSkills.slice(0, 2).join(", ")}" to improve visibility.`,
+        title: "Expand Your Skill Documentation",
+        description: `Add more details about your ${cvSkills.length} skills. Include proficiency levels and projects.`,
         priority: "medium" as const,
       },
     ],
-    fitScore,
+    fitScore: overallMatch,
     experienceGap,
   };
 }
