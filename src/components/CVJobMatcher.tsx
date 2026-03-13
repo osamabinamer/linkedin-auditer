@@ -156,9 +156,38 @@ export default function CVJobMatcher({ onAnalyze, loading, error }: CVJobMatcher
           onClick={() => fileInputRef.current?.click()}
         >
           <div className="text-4xl mb-3">📄</div>
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">
-            Upload your CV/LinkedIn Profile
-          </h3>
+          {mode === "profile" ? (
+            <>
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">
+                Upload LinkedIn Profile as PDF
+              </h3>
+              <div className="bg-blue-50 rounded-lg p-4 mb-4 text-left border border-blue-200">
+                <p className="text-sm font-semibold text-slate-900 mb-3">How to download your LinkedIn profile as PDF:</p>
+                <ol className="text-sm text-slate-700 space-y-2">
+                  <li className="flex gap-2">
+                    <span className="font-semibold">1.</span>
+                    <span>Go to your LinkedIn profile page</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="font-semibold">2.</span>
+                    <span>Click the "Open to work" or menu icon (three dots) in the top right</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="font-semibold">3.</span>
+                    <span>Select "Save to PDF" option</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="font-semibold">4.</span>
+                    <span>Upload the downloaded PDF file here</span>
+                  </li>
+                </ol>
+              </div>
+            </>
+          ) : (
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">
+              Upload your CV/LinkedIn Profile
+            </h3>
+          )}
           <p className="text-slate-600">
             {cvText.length > 0
               ? `✓ PDF processed (${cvText.length} characters extracted)`
