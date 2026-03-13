@@ -1,18 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-async function extractTextFromPDF(buffer: Buffer): Promise<string> {
-  try {
-    // Dynamically import pdf-parse to avoid build issues
-    const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
-    const data = await pdfParse(buffer);
-    return data.text || "";
-  } catch (error) {
-    console.error("PDF extraction failed:", error);
-    // Return empty string - will trigger demo mode
-    return "";
-  }
-}
-
 async function generateDemoAnalysis(profileText: string) {
   // Demo/fallback analysis when Ollama is not available
   // Analyzes the actual profile text to generate realistic metrics
