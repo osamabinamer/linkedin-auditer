@@ -2,6 +2,8 @@
 
 A high-fidelity AI-powered career auditor that transforms static LinkedIn profiles into dynamic, actionable insights through a minimalist and fluid interface.
 
+🚀 **Live on Vercel**: [linkedin-auditer.vercel.app](https://linkedin-auditer.vercel.app)
+
 ## Features
 
 - 📄 **PDF Upload**: Drag-and-drop or select your LinkedIn profile PDF export
